@@ -1,14 +1,14 @@
 public with sharing class BuildPageController {
-	
-	public Build__c build {get;set;}
-	public Boolean isEdit {get;set;}//comment is added
+	 
+	public Build__c build {get;set;}  
+	public Boolean isEdit {get;set;}//This is master branch
 	public List<Build_Change_Request__c> buildChangeRequests {get;set;}
     public BuildPageController(ApexPages.StandardController std){
 		if(std.getId()!=null){
 		   build = [Select Id,Check_Only__c,Connection__c,Description__c,Test_Options__c,TestClasses__c,Name From Build__c WHERE ID=:std.getId()];	
 		   populateBuildChangeRequests();	
 		   isEdit = true;	
-		}
+		} 
 	} 
 	
 	private void populateBuildChangeRequests(){
