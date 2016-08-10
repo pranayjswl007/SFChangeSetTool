@@ -1,0 +1,146 @@
+<apex:page controller="SFDeploymentController">
+	<apex:includeScript value="//code.jquery.com/jquery-2.2.0.js"/>
+	<apex:includeScript value="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.1/js/select2.js"/>
+	<apex:styleSheet value="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.1/css/select2.css"/>
+	<apex:form >
+	<apex:pageMessages id="msg"/>
+	<apex:pageBlock >
+		<apex:pageBlockSection title="Select Existing Build" columns="1">
+			<center>
+				<apex:selectList value="{!connectionId}" id="buildId" multiselect="false" size="1" onchange="refreshSelection();if(!this.value){jQuery('[id$=upsertBuildButton]').val('Create Build');}else{jQuery('[id$=upsertBuildButton]').val('Update Build');}">
+		            <apex:selectOptions value="{!builds}"/>
+		        </apex:selectList>
+			</center>			
+		</apex:pageBlockSection>
+		<!-- <apex:pageBlockSection title="Select Changes To Be Grouped" columns="1">
+			<center>
+				<select id="changeRequestToBeGrouped" multiple="multiple" >  
+						 
+				</select> 
+				<center>
+					<apex:commandButton value="Group Selected Changes" reRender="dummy,msg" action="{!null}" onclick="groupChanges(jQuery('#changeRequestToBeGrouped').val().toString());return;"/>
+				</center>
+			</center>			
+		</apex:pageBlockSection> -->		
+		<apex:outputPanel id="groupingResult">
+			<apex:repeat value="{!groupedChanges}" var="group">
+				<apex:outputPanel rendered="{! group.groupName != 'Independent' }" >
+					<input  type="checkbox" class="SelectAll{!group.groupName}"  onclick="if(this.checked){selectAll('Group-{!group.groupName}')}else{deSelectAll('Group-{!group.groupName}')}"/>Select All
+				</apex:outputPanel>
+				<apex:pageBlockSection title="{!group.groupName} [{!group.changeRequests.size}]" columns="1" >
+					<apex:repeat value="{!group.changeRequests}" var="cr">
+						<apex:pageBlockSectionItem >
+								<apex:outputPanel >	
+									<input groupName="{!group.groupName}" type="checkbox" name="{!cr.changeRequest.Id}" 
+											value="{!cr.changeRequest.Id}" class="Group-{!group.groupName} {!cr.changeRequest.Id}CRClass ChangeRequestClass {!group.groupName}"/>											
+									<apex:outputLabel value="{!cr.changeRequest.Name}"></apex:outputLabel>
+									<apex:outputLabel value="{!cr.changeRequest.CR_ID__c}"></apex:outputLabel>
+									<b><apex:outputLabel value="{!cr.changeRequest.Status__c}"></apex:outputLabel></b>
+									<button onclick="jQuery('.{!cr.changeRequest.Id}').toggle(); return false;">Show/Hide Components</button>
+								</apex:outputPanel>					
+						</apex:pageBlockSectionItem>						
+						<!-- <apex:repeat value="{!cr.commonComponents}" var="component"> -->
+							<apex:outputLabel style="display:none;" styleClass="{!cr.changeRequest.Id}" value="{!cr.CommonCompoentString}"></apex:outputLabel>
+							
+						<!-- </apex:repeat> -->
+					</apex:repeat>
+				</apex:pageBlockSection>
+			</apex:repeat>
+		</apex:outputPanel>		
+		<apex:pageBlockButtons >
+			<!-- <apex:commandButton value="Deploy Code" action="{!null}" onclick="deployCode();return false;"/>
+			<apex:commandButton value="Validate Code" action="{!null}" onclick="validateCode();return false;"/> -->
+			    <apex:commandButton value="Create Build" id="upsertBuildButton" action="{!null}" onclick="upsertBuild();return false;"/>
+		</apex:pageBlockButtons>
+	</apex:pageBlock>   	
+		<apex:actionRegion > 
+			<apex:actionFunction name="groupChanges" reRender="groupingResult,msg" action="{!groupChanges}">
+				<apex:param value="" name="crIdListString"/>
+			</apex:actionFunction>
+		</apex:actionRegion>
+	</apex:form>
+	
+	
+	<script>
+	
+		function upsertBuild(){
+		    var changeRequests = [];
+		    jQuery('.ChangeRequestClass').each(function(){
+		    	if(this.checked){
+		    	  changeRequests.push(this.value);
+		    	}
+		    });
+		    jQuery('[id$="LoadingStatusSpinner.start"]').show();
+			SFDeploymentController.upsertBuild(changeRequests,jQuery('[id$=buildId]').val(),function(result,event){
+				if(event.status){
+					if(result){                        
+                        window.location = '/'+result+'/e';
+                    }
+				}
+			}, { escape : false});
+		}
+		
+			
+		function selectAll(styleClass){
+				$('.'+styleClass+'').each(function(){ this.checked = true; });
+		}
+		function deSelectAll(styleClass){
+				$('.'+styleClass+'').each(function(){ this.checked = false; });
+		}
+		
+		jQuery(function(){
+			jQuery('.ChangeRequestClass').each(function(element){
+				if(!jQuery(this).hasClass('Independent')){
+					jQuery(this).prop( "disabled", true );
+				}
+			});
+			refreshChangeRequestsToBeGrouped();
+		});
+		
+		function refreshSelection(){
+		    if(jQuery('[id$=buildId]').val()){
+    		    SFDeploymentController.getExistingCRs(jQuery('[id$=buildId]').val(),function(result,event){
+    				if(event.status){
+    				    console.log(result);
+    					if(result){
+    					  jQuery(result).each(function(index,element){
+                              console.log('Element-->'+element);
+                              $( "."+element+"CRClass" ).prop( "checked", true );
+                              $( ".SelectAll"+$( "."+element+"CRClass" ).attr('groupName')).prop( "checked", true );
+                              
+    					  });
+                        }
+    				}
+    			});
+		    }else{
+		        jQuery('.ChangeRequestClass').each(function(element){
+    				jQuery(this).prop( "checked", false );
+    			});
+		        
+		    }
+		}
+		
+		
+		function refreshChangeRequestsToBeGrouped(){
+			SFDeploymentController.getChangeRequests(function(result,event){
+				if(event.status){
+					if(result){
+                        for(key in result){
+                            var groupStart = '<optgroup label="'+key+'">';
+                            var groupBody = '';
+                                for(index in result[key]){                                	
+                                	if(result[key][index].Name){
+	                                    groupBody +='<option value="'+result[key][index].Id+'" >'+result[key][index].Name+'</option>';
+                                	}
+                                } 
+                            var groupEnd = '</optgroup>';
+                            jQuery('[id$=changeRequestToBeGrouped]').append(groupStart+groupBody+groupEnd);
+                        }
+                        jQuery('[id$=changeRequestToBeGrouped]').select2({ width: '1000px' });
+                    }
+				}
+			});
+		}
+	</script>
+	<c:loadingStatusSpinner ></c:loadingStatusSpinner>
+</apex:page>

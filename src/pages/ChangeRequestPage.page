@@ -1,0 +1,228 @@
+<apex:page standardController="Change_Request__c" extensions="ChangeRequestPageController" sidebar="false">
+	<apex:includeScript value="//code.jquery.com/jquery-2.2.0.js"/>
+	<apex:includeScript value="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.1/js/select2.js"/>
+	<apex:styleSheet value="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.1/css/select2.css"/>
+	<apex:form >
+	<apex:pageMessages id="msg"/>
+	<!-- LOADING -->
+     <center>
+             <apex:actionStatus id="showLoading">
+                <apex:facet name="start">
+                     Loading            
+                    <img src="/img/loading.gif">
+                    </img>
+                </apex:facet>
+             </apex:actionStatus> 
+     </center>
+	<apex:pageBlock >
+		<apex:pageBlockSection title="Change Request" id="changeRequestDetails"> 
+			<apex:inputField required="true" value="{!changeRequest.Name}"/>
+			<apex:inputField required="true" value="{!changeRequest.CR_ID__c}"/>
+			<apex:inputField required="true" value="{!changeRequest.Status__c}"/>
+			<apex:inputField required="true" value="{!changeRequest.Salesforce_Org__c}"/>
+			<center>
+				<apex:outputPanel >			
+					<apex:commandButton value="Save"  action="{!saveRecord}" reRender="dummy,changeRequestDetails,msg,changeRequestComponentPanel,dynamicJs,changeSetComponentsPanel" 
+							oncomplete="populateCustomObjects();" status="showLoading">
+					</apex:commandButton>
+				</apex:outputPanel>
+			</center>
+		</apex:pageBlockSection>
+		<apex:outputPanel id="changeRequestComponentPanel" >		
+		<apex:pageBlockSection title="Add Classes,Triggers,Components,Pages" columns="2" rendered="{! changeRequest.Id != null }">
+			<apex:pageBlockSectionItem >
+				<center>
+					<select id="changeRequestComponentsId" multiple="multiple" >							
+					</select>
+					<img id="changeRequestComponentsIdSpinner" style="display:none;" src="/img/loading.gif" />   
+				</center>
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<apex:commandButton value="Add Components" reRender="dummy" action="{!null}" onclick="updateComponents();return;"/>
+			</apex:pageBlockSectionItem>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection title="Add SObjects,Fields" columns="2" id="customObjectFieldsPanel" rendered="{! changeRequest.Id != null }">
+			<apex:pageBlockSectionItem >
+				<apex:selectList style="height:30px;width:300px;" value="{!sobjectIdOrEnum}"  
+						multiselect="false" size="1" id="sobjectIdOrEnumId" onchange="refreshFieldList();">
+		            <apex:selectOptions value="{!customObjects}"/> 
+		        </apex:selectList>
+		        <img id="otherFieldsComponentSpinner" style="display:none;" src="/img/loading.gif" /> 
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<select id="customFieldSelectOptionId" multiple="multiple" >							  
+				</select>
+		        <apex:commandButton action="{!null}" value="Add CustomField"
+		        		onclick="addOtherComponents('CustomField','customFieldSelectOptionId','refreshFieldList');return;" 
+		        		status="showLoading" reRender="msg,changeSetComponentsPanel" />
+			</apex:pageBlockSectionItem>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection title="Add other metadata components" rendered="{! changeRequest.Id != null }">
+			<apex:pageBlockSectionItem >
+				<apex:selectList style="height:30px;width:300px;" value="{!selectedComponentType}" 
+						multiselect="false" size="1" id="metadataOtherComponentId" onchange="refreshOtherComponents();">
+		            <apex:selectOptions value="{!componentTypes}"/>
+		        </apex:selectList>
+		        <img id="metadataOtherComponentSpinner" style="display:none;" src="/img/loading.gif" />                    
+			</apex:pageBlockSectionItem>
+			<apex:pageBlockSectionItem >
+				<select id="otherComponentId" multiple="multiple" >							
+				</select>
+				<apex:commandButton value="Add Components" reRender="dummy" action="{!null}" 
+						onclick="addOtherComponents(jQuery('[id$=metadataOtherComponentId]').val(),'otherComponentId','refreshOtherComponents');return;"/>						
+			</apex:pageBlockSectionItem>	
+		</apex:pageBlockSection>
+		</apex:outputPanel>		
+	</apex:pageBlock>
+	<apex:pageBlock id="changeSetComponentsPanel">
+		<apex:outputPanel rendered="{!changeRequest.Id != null}">
+			<apex:pageBlockSection title="Components in the change request:" columns="1" >
+				
+				<apex:pageBlockTable value="{!components}" var="component">
+					<apex:column headerValue="Action" rendered="{!NOT(isReadOnly)}">	                       
+	                	<apex:actionRegion >
+	                        <apex:commandLink value="Delete" status="showLoading" action="{! deleteRecord }" oncomplete="refreshAll();" reRender="changeSetComponentsPanel,msg">
+	                        	<apex:param name="recordId" value="{! component.Id }"/>
+	                        </apex:commandLink>                        
+	                	</apex:actionRegion>
+	                </apex:column>
+					<apex:column value="{!component.Type__c}" />
+					<apex:column value="{!component.Component_Name__c}" />
+				</apex:pageBlockTable>
+			</apex:pageBlockSection>
+		</apex:outputPanel>
+	</apex:pageBlock>
+	<apex:actionRegion >
+		<apex:actionFunction name="refreshChangeSetComponents" action="{!null}" reRender="changeSetComponentsPanel" status="showLoading"/>
+		<apex:actionFunction name="populateCustomObjects" action="{!populateCustomObjects}" reRender="customObjectFieldsPanel" 
+			status="showLoading" oncomplete="refreshAll();" />		
+	</apex:actionRegion>
+	<apex:outputPanel id="dynamicJs">
+	<script> 
+		jQuery(function(){			
+			refreshAll();
+		});//ready event
+		  
+		function refreshAll(){
+			refreshComponents();
+			refreshOtherComponents();
+			refreshFieldList();
+		}  
+		  
+		function refreshComponents(){
+	        $('[id$=changeRequestComponentsId]').html('');
+	        jQuery('#changeRequestComponentsIdSpinner').show();
+			ChangeRequestPageController.getComponents('{!changeRequest.Id}',function(result,event){
+				jQuery('#changeRequestComponentsIdSpinner').hide();
+                if(event.status){                
+                	if(result){
+                        for(key in result){
+                            var groupStart = '<optgroup label="'+key+'">';
+                            var groupBody = '';
+                            for(index in result[key]){
+                            	var selectedString = '';
+                            	var disableString = '';                            	
+                            	if(result[key][index].isSelected){
+                            		selectedString = 'selected = "selected" ';
+                            		disableString = ' disabled="disabled" ';                            		
+                            	}
+                            	if(result[key][index].value){
+                                 groupBody +='<option value="'+result[key][index].value+'" '+disableString+' >'+result[key][index].label+'</option>';
+                            	}
+                            } 
+                            var groupEnd = '</optgroup>';
+                            jQuery('[id$=changeRequestComponentsId]').append(groupStart+groupBody+groupEnd);
+                        }
+                        jQuery('[id$=changeRequestComponentsId]').select2({ width: '1110px' });
+                    }
+                } 
+            });                        		
+		}
+		
+		function refreshOtherComponents(){
+			jQuery('#metadataOtherComponentSpinner').show();
+            $('[id$=otherComponentId]').html('');
+			ChangeRequestPageController.getOtherComponents('{!changeRequest.Id}',jQuery('[id$=metadataOtherComponentId]').val(),function(result,event){
+				jQuery('#metadataOtherComponentSpinner').hide();				
+                if(event.status){
+                    console.log(result);
+                	if(result){
+                        for(key in result){
+                            var groupBody = ''; 
+                            var disableString = '';                            	
+                           	if(result[key].isSelected){
+                           		disableString = ' disabled="disabled" ';                            		
+                           	}                          
+                           	if(result[key].value){
+                                groupBody +='<option value="'+result[key].value+'" '+disableString+' >'+result[key].label+'</option>';
+                           	}
+                            jQuery('[id$=otherComponentId]').append(groupBody);
+                        }
+                        jQuery('[id$=otherComponentId]').select2({ width: '800px' });
+                    }
+                } 
+            });
+		}
+		
+		function refreshFieldList(){
+			jQuery('#otherFieldsComponentSpinner').show();
+            $('[id$=customFieldSelectOptionId]').html('');
+			ChangeRequestPageController.refreshFieldList('{!changeRequest.Id}',jQuery('[id$=sobjectIdOrEnumId]').val(),function(result,event){
+				jQuery('#otherFieldsComponentSpinner').hide();
+                if(event.status){
+                    console.log(result);
+                	if(result){
+                        for(key in result){
+                            var groupBody = '';
+                            var disableString = '';
+                            if(result[key].isSelected){
+                           		disableString = ' disabled="disabled" ';                            		
+                           	}                                                     
+                           	if(result[key].value){
+                                groupBody +='<option value="'+result[key].value+'" '+disableString+'>'+result[key].label+'</option>';
+                           	}
+                            jQuery('[id$=customFieldSelectOptionId]').append(groupBody);
+                        }
+                        jQuery('[id$=customFieldSelectOptionId]').select2({ width: '800px' });
+                    }
+                } 
+            });
+		}
+		
+		function updateComponents(){
+			var elements = [];
+			$("#changeRequestComponentsId option:selected").each(function () {
+			   var $this = $(this);
+			   if ($this.length) {
+			    var selText = $this.text();
+			    elements.push(selText);
+			   }
+			});
+			ChangeRequestPageController.updateComponents('{!changeRequest.Id}',elements,function(result,event){
+				if(event.status){
+					refreshChangeSetComponents();				
+				}
+			});			
+		}
+		
+		function addOtherComponents(typeOfMetadata,selectElementId,refreshPicklistFunction){
+			var elements = [];
+			$("#"+selectElementId+" option:selected").each(function () {
+			   var $this = $(this);
+			   if ($this.length) {
+			    var selText = $this.val();
+			    elements.push(selText);
+			   }
+			});
+			ChangeRequestPageController.addOtherComponents('{!changeRequest.Id}',typeOfMetadata,elements,function(result,event){
+				if(event.status){
+					window[refreshPicklistFunction]();
+					refreshChangeSetComponents();				
+				}
+			});			
+		}
+				
+	</script>
+	</apex:outputPanel>
+	</apex:form>
+</apex:page>
