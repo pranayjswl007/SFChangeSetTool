@@ -29,12 +29,12 @@
             <apex:outputField rendered="{!!isEdit}" style="width:700px;" value="{!build.Description__c}"/>
             <apex:outputField rendered="{!!isEdit}" style="width:700px;" value="{!build.TestClasses__c}"/> 
         </apex:pageBlockSection>
-        <apex:pageBlockButtons >
+        <center>
                 <apex:commandButton value="Save" rendered="{!isEdit}" action="{!save}"  reRender="mainPageBlock,msg" status="showLoading" ></apex:commandButton>
                 <apex:commandButton value="Edit" rendered="{!!isEdit}" action="{!edit}"  reRender="mainPageBlock,msg" status="showLoading" ></apex:commandButton>
                 <apex:commandButton value="Deploy Code" rendered="{!!isEdit}" action="{!null}" onclick="deployCode();return false;"/>
                 <apex:commandButton value="Validate Code" rendered="{!!isEdit}" action="{!null}" onclick="validateCode();return false;"/>
-        </apex:pageBlockButtons>
+        </center>
     </apex:pageBlock>
     <apex:pageBlock >
         <apex:pageBlockSection title="Build Change Requests" columns="1">

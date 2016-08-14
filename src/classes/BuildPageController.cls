@@ -6,8 +6,13 @@ public with sharing class BuildPageController {
     public BuildPageController(ApexPages.StandardController std){
 		if(std.getId()!=null){
 		   build = [Select Id,Check_Only__c,Connection__c,Description__c,Test_Options__c,TestClasses__c,Name From Build__c WHERE ID=:std.getId()];	
-		   populateBuildChangeRequests();	
-		   isEdit = true;	
+		   populateBuildChangeRequests();
+		   String readOnlyMode = ApexPages.currentPage().getParameters().get('readOnlyMode');	
+		   if(readOnlyMode != null && readOnlyMode == 'true'){
+		   	   isEdit = false;
+		   }else{
+			   isEdit = true;	
+		   }
 		} 
 	} 
 	
@@ -25,6 +30,18 @@ public with sharing class BuildPageController {
 		isEdit = true;
 		return null;
 	}
+	
+	/**
+	* This method will navigate the page in view only mode since this method got called from 
+	* the page which has been configured to be opened in view mode when clicked on any build object record.
+	*/
+	public PageReference viewModeActionMethod(){
+		isEdit = false;
+		PageReference pg =  new PageReference('/apex/BuildPage?id='+build.Id+'&readOnlyMode=true');
+		pg.setRedirect(true);
+		return pg;  
+	}
+	
 	
 	@RemoteAction
 	public static String getDeploymentStatus(){
