@@ -1,0 +1,2 @@
+<apex:page action="{!viewModeActionMethod}" standardController="Build__c" extensions="BuildPageController">
+</apex:page>
