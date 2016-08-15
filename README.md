@@ -1,4 +1,8 @@
-# SFChangeSet-Force.com
+# SFChangeSetTool
+Features <br/>
+-[1] Adding metadata comoponents to the change requests.</br>
+-[2] Grouping of changes for finding out code dependency of changes.
+
 
 To directly deploy, please click on below link:
 <br/>
