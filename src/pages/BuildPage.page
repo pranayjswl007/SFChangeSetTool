@@ -9,7 +9,7 @@
                      Loading            
                     <img src="/img/loading.gif">
                     </img>
-                </apex:facet>
+                </apex:facet> 
              </apex:actionStatus> 
      </center>
     <apex:pageBlock id="mainPageBlock">
