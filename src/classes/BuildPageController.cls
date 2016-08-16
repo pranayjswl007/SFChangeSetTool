@@ -1,6 +1,7 @@
 public with sharing class BuildPageController {
 	 
 	public Build__c build {get;set;} //adding comment form work pc 
+	//adding new line
 	public Boolean isEdit {get;set;}//This is master branch
 	public List<Build_Change_Request__c> buildChangeRequests {get;set;}
     public BuildPageController(ApexPages.StandardController std){
